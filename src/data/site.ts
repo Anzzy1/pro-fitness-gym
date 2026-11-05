@@ -16,6 +16,10 @@ export const SOCIAL = {
 export const FORM_CONFIG = {
   email: "profitnessgym.antipolo@gmail.com",
   subject: "New inquiry from the Pro Fitness Gym website",
+  // Test mode: the form pretends to send (nothing is emailed) and shows what the gym would receive.
+  // On automatically while running `npm run dev`; off on the live site (`npm run build` + `npm start`).
+  // Set to false to send real emails while developing.
+  testMode: process.env.NODE_ENV !== "production",
 };
 
 // Membership promo. Between `start` and `end` (Philippine time) the site shows the 50% promo

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CONTACT, EXTRA_INQUIRY_OPTIONS, FORM_CONFIG, PLANS } from "@/data/site";
-import { CheckIcon } from "./Icons";
 
 type Field = "name" | "email" | "phone" | "plan";
 type FieldEl = HTMLInputElement | HTMLSelectElement;
@@ -21,7 +20,12 @@ export default function InquiryForm() {
   const [invalid, setInvalid] = useState<Record<Field | "contact", boolean>>({ name: false, email: false, phone: false, plan: false, contact: false });
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  // details of the inquiry that was just sent (shown on the success panel), null while filling in
+  const [sent, setSent] = useState<{ first: string; plan: string; via: string; payload: Record<string, string> } | null>(null);
+  const doneHeading = useRef<HTMLHeadingElement>(null);
+
+  // move focus to the success message so keyboard / screen-reader users hear it
+  useEffect(() => { if (sent) doneHeading.current?.focus({ preventScroll: true }); }, [sent]);
 
   const el = (f: Field) => refs[f].current as FieldEl;
   const mark = (f: Field | "contact", bad: boolean) => setInvalid((s) => (s[f] === bad ? s : { ...s, [f]: bad }));
@@ -77,7 +81,12 @@ export default function InquiryForm() {
       if (first) el(first).focus();
       return;
     }
-    if (refs.honey.current!.value) return; // bot
+    if (refs.honey.current!.value) {
+      // the hidden spam trap was filled in: almost certainly a bot, so don't send
+      console.warn("Inquiry blocked: the hidden spam-trap field was filled in.");
+      if (FORM_CONFIG.testMode) setError("Test mode: blocked by the spam trap (the hidden field was filled in, usually by a bot or browser autofill).");
+      return;
+    }
 
     if (!FORM_CONFIG.email) {
       console.warn("FORM_CONFIG.email is empty — set the gym's email in src/data/site.ts.");
@@ -85,7 +94,7 @@ export default function InquiryForm() {
       return;
     }
 
-    const name = el("name").value.trim(), email = el("email").value.trim();
+    const name = el("name").value.trim(), email = el("email").value.trim(), phone = el("phone").value.trim();
     const data: Record<string, string> = {
       name,
       contact_email: email || "(not provided)",
@@ -100,15 +109,28 @@ export default function InquiryForm() {
 
     setSending(true);
     try {
-      const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(FORM_CONFIG.email)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || String(json.success) !== "true") throw new Error(json.message || `HTTP ${res.status}`);
-      setSent(true);
+      if (FORM_CONFIG.testMode) {
+        // pretend to send: same wait + success flow, but nothing leaves the browser
+        console.info("[test mode] Inquiry NOT emailed. This is what the gym would receive:", data);
+        await new Promise((r) => setTimeout(r, 1200));
+      } else {
+        const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(FORM_CONFIG.email)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(data),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || String(json.success) !== "true") throw new Error(json.message || `HTTP ${res.status}`);
+      }
+      // clear everything, then show the success panel
       formRef.current!.reset();
+      setInvalid({ name: false, email: false, phone: false, plan: false, contact: false });
+      setSent({
+        first: name.split(/\s+/)[0],
+        plan: data.interested_in,
+        payload: data,
+        via: email && phone ? `by email or text` : email ? `by email at ${email}` : `by text at ${phone}`,
+      });
     } catch (err) {
       console.error("Inquiry failed:", err);
       setError(`Sorry, we couldn't send your inquiry right now. Please try again, or call/text us at ${CONTACT.phoneDisplay}.`);
@@ -117,15 +139,25 @@ export default function InquiryForm() {
     }
   };
 
+  const sendAnother = () => {
+    setSent(null);
+    setTimeout(() => refs.name.current?.focus({ preventScroll: true }), 50);
+  };
+
   const fieldClass = (f: Field) => `field${invalid[f] ? " is-invalid" : ""}`;
 
   return (
-    <form className="form reveal-right" id="inquiryForm" noValidate ref={formRef} onSubmit={onSubmit}>
+    // note: className must stay constant here, the scroll-reveal effect adds "is-visible" to it directly
+    <form className="form reveal-right" data-sent={sent ? "" : undefined} id="inquiryForm" noValidate ref={formRef} onSubmit={onSubmit}>
+      {/* while the success panel is up, the (cleared) fields underneath can't be focused */}
+      <div className="form__body" inert={!!sent}>
       <h3><span data-promo="">Claim your promo</span><span data-regular="">Send us an inquiry</span></h3>
       <p className="form__sub">Send us your details and our team will get back to you by email or text.</p>
+      {FORM_CONFIG.testMode && <p className="form__test">Test mode · inquiries are not emailed (only while running npm run dev)</p>}
 
       {/* spam trap: real visitors never see or fill this */}
-      <input type="text" name="_honey" className="form__honey" tabIndex={-1} autoComplete="off" aria-hidden="true" ref={refs.honey} />
+      <input type="text" name="pfg_hp_check" className="form__honey" tabIndex={-1} autoComplete="off" aria-hidden="true" ref={refs.honey}
+        data-lpignore="true" data-1p-ignore="" data-bwignore="" data-form-type="other" />
 
       <div className={fieldClass("name")}>
         <input type="text" id="fName" name="name" placeholder=" " required autoComplete="name" ref={refs.name} onBlur={onBlur("name")} onInput={onInput("name")} />
@@ -162,13 +194,45 @@ export default function InquiryForm() {
         <label htmlFor="fMessage">Message (optional)</label>
       </div>
 
-      <button type="submit" className="btn btn--primary btn--block btn--lg" id="formSubmit" hidden={sent} disabled={sending}>
+      <button type="submit" className="btn btn--primary btn--block btn--lg" id="formSubmit" disabled={sending}>
         {sending ? "Sending…" : "Send inquiry"}
       </button>
       <div className="form__error" id="formError" role="alert" hidden={!error}>{error}</div>
+      </div>
+
+      {/* Success panel: slides over the cleared form with an animated check */}
       <div className="form__success" id="formSuccess" role="status" hidden={!sent}>
-        <CheckIcon />
-        <p><b>Inquiry sent!</b> Thanks — our team will contact you soon.</p>
+        {sent && (
+          <>
+            <div className="sent-check" aria-hidden="true">
+              <span className="sent-check__burst">{Array.from({ length: 8 }, (_, i) => <i key={i} style={{ "--a": `${i * 45}deg` } as React.CSSProperties} />)}</span>
+              <svg viewBox="0 0 52 52">
+                <circle className="sent-check__ring" cx="26" cy="26" r="24" />
+                <path className="sent-check__tick" d="M15 27l7 7 15-15" />
+              </svg>
+            </div>
+            <h4 className="form__success-title" ref={doneHeading} tabIndex={-1}>Inquiry sent!</h4>
+            <p>
+              Thanks, <b>{sent.first}</b>! We got your inquiry about <b>{sent.plan}</b>.
+              Our team will get back to you {sent.via} soon.
+            </p>
+            {FORM_CONFIG.testMode && (
+              <details className="form__preview">
+                <summary>Test mode: see the email the gym would get</summary>
+                <p className="form__preview-subject">Subject: {sent.payload._subject}</p>
+                <table>
+                  <tbody>
+                    {Object.entries(sent.payload).filter(([k]) => !k.startsWith("_")).map(([k, v]) => (
+                      <tr key={k}><th>{k}</th><td>{v}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+                {sent.payload._replyto && <p className="form__preview-subject">Hitting &quot;Reply&quot; goes to: {sent.payload._replyto}</p>}
+              </details>
+            )}
+            <button type="button" className="btn btn--ghost btn--sm" id="sendAnother" onClick={sendAnother}>Send another inquiry</button>
+          </>
+        )}
       </div>
     </form>
   );

@@ -41,12 +41,16 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
+    // suppressHydrationWarning: browser extensions (e.g. Corafeed, Grammarly, dark-mode tools) add their own
+    // attributes to <html>/<body> before React loads. This ignores attribute differences on these two tags only;
+    // everything inside is still checked normally.
     <html
       lang="en"
       data-scroll-behavior="smooth"
       className={`${anton.variable} ${barlowCondensed.variable} ${barlow.variable}`}
+      suppressHydrationWarning
     >
-      <body>{children}</body>
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }
