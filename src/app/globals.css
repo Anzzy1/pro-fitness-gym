@@ -15,9 +15,9 @@
   --chrome: linear-gradient(180deg, #ffffff 0%, #c9c9cc 45%, #8a8a90 55%, #e6e6e9 100%);
   --radius: 18px;
   --ease: cubic-bezier(.22, 1, .36, 1);
-  --display: "Anton", Impact, sans-serif;
-  --cond: "Barlow Condensed", "Arial Narrow", sans-serif;
-  --body: "Barlow", system-ui, sans-serif;
+  --display: var(--font-anton), "Anton", Impact, sans-serif;
+  --cond: var(--font-barlow-condensed), "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: var(--font-barlow), "Barlow", system-ui, sans-serif;
   --nav-h: 76px;
 }
 
@@ -139,7 +139,7 @@ svg { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2
 .nav.is-scrolled { background: rgba(10,10,10,.82); backdrop-filter: blur(14px) saturate(140%); border-color: var(--line); }
 .nav.is-hidden { transform: translateY(-100%); }
 /* blur/transform on .nav would trap the fixed full-screen menu inside the bar, so drop them while it is open */
-.nav.menu-open { backdrop-filter: none; -webkit-backdrop-filter: none; transform: none; background: transparent; border-color: transparent; transition: none; }
+.nav.menu-open { backdrop-filter: none; transform: none; background: transparent; border-color: transparent; transition: none; }
 .nav__inner { height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .nav__logo img { height: 46px; width: auto; transition: transform .4s var(--ease); }
 .nav__logo:hover img { transform: scale(1.06) rotate(-2deg); }
@@ -326,7 +326,7 @@ svg { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2
 .perk { display: flex; align-items: center; gap: 12px; font-family: var(--cond); font-size: 19px; text-transform: uppercase; letter-spacing: .05em; color: #e4e4e7; }
 .perk svg { font-size: 30px; color: var(--red-2); }
 .perk b { color: #fff; }
-/* Promo on/off (js/main.js PROMO sets html.promo-on while a promo is running) */
+/* Promo on/off (src/data/site.ts PROMO -> <PromoController> sets html.promo-on while a promo is running) */
 html:not(.promo-on) [data-promo], html.promo-on [data-regular] { display: none !important; }
 .promo-ends { margin-left: 10px; padding: 2px 10px; border-radius: 999px; background: rgba(225,6,0,.15); color: #fca5a5; }
 .promo-ends:empty { display: none; }
