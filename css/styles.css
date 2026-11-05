@@ -138,6 +138,8 @@ svg { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2
 }
 .nav.is-scrolled { background: rgba(10,10,10,.82); backdrop-filter: blur(14px) saturate(140%); border-color: var(--line); }
 .nav.is-hidden { transform: translateY(-100%); }
+/* blur/transform on .nav would trap the fixed full-screen menu inside the bar, so drop them while it is open */
+.nav.menu-open { backdrop-filter: none; -webkit-backdrop-filter: none; transform: none; background: transparent; border-color: transparent; transition: none; }
 .nav__inner { height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .nav__logo img { height: 46px; width: auto; transition: transform .4s var(--ease); }
 .nav__logo:hover img { transform: scale(1.06) rotate(-2deg); }

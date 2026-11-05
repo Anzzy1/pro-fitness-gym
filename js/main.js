@@ -145,6 +145,8 @@
   const nav = $("#nav"), toggle = $("#navToggle"), menu = $("#navMenu");
   const setMenu = (open) => {
     menu.classList.toggle("is-open", open);
+    nav.classList.toggle("menu-open", open);
+    if (open) nav.classList.remove("is-hidden");
     toggle.setAttribute("aria-expanded", open);
     toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
     document.body.classList.toggle("is-locked", open);
@@ -236,17 +238,7 @@
 
   /* ---------------- Open / closed status + hours ---------------- */
   const renderHours = () => {
-    const { day, hour } = manilaNow();
-    const today = HOURS.find((h) => h.day === day);
-    const pill = $("#statusPill"), label = $("span", pill);
-    const isOpen = hour >= today.open && hour < today.close;
-    pill.classList.toggle("is-open", isOpen);
-    pill.classList.toggle("is-closed", !isOpen);
-    if (isOpen) label.textContent = `Open · till ${fmtHour(today.close)}`;
-    else {
-      const next = hour < today.open ? today : HOURS.find((h) => h.day === (day + 1) % 7);
-      label.textContent = `Closed · opens ${fmtHour(next.open)}`;
-    }
+    const { day } = manilaNow();
     $("#hoursList").innerHTML = HOURS.map((h) =>
       `<li class="${h.day === day ? "is-today" : ""}"><span>${h.label}</span><span>${fmtHour(h.open)} – ${fmtHour(h.close)}</span></li>`).join("");
   };
